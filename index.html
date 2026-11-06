@@ -340,6 +340,24 @@ const cvCount = () => Number(S.profile?.cvCount || 0);
 const freeLeft = () => Math.max(0, FREE_LIMIT - cvCount());
 const canCreate = () => isPro() || freeLeft() > 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const withTimeout = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(msg), { code: "TIMEOUT" })), ms))]);
+function showDbError(e) {
+  const denied = /PERMISSION_DENIED|permission/i.test(String(e?.code || e?.message));
+  const timeout = e?.code === "TIMEOUT";
+  view.innerHTML = `<div class="card mt2" style="max-width:560px;margin-left:auto;margin-right:auto">
+    <div class="big">${denied ? "🚫" : "📡"}</div>
+    <h2 class="mt" style="font-size:28px">${denied ? "Database said no" : "Database isn't answering"}</h2>
+    <p class="muted">${esc(e?.message || String(e))}</p>
+    <div class="card ${denied ? "pink" : "sun"} mt" style="padding:14px;box-shadow:none">
+      ${denied
+        ? `<b>Admin fix:</b> Firebase Console → <b>Realtime Database</b> → <b>Rules</b> tab → paste <span class="num">database.rules.json</span> → <b>Publish</b>.`
+        : `<b>Check:</b><br>1. Firebase Console → <b>Realtime Database</b> exists (not just Firestore) and its rules are published.<br>2. Turn off ad-blocker / VPN / antivirus web shield for this site.<br>3. Internet is working.`}
+    </div>
+    <div class="row wrapf mt"><button class="btn lime" id="dbRetry">↻ Retry</button><button class="btn" id="dbOut">Log out</button></div>
+  </div>`;
+  $("#dbRetry").onclick = () => location.reload();
+  $("#dbOut").onclick = () => signOut(auth);
+}
 const ago = t => { if (!t) return "just now"; const s = (Date.now() - t) / 1000; if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago"; if (s < 604800) return Math.floor(s / 86400) + "d ago"; return new Date(t).toLocaleDateString(); };
 const fmtDate = t => t ? new Date(t).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—";
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -691,7 +709,7 @@ const devKeyName = () => "cvb_key_" + S.user.uid;
 async function loadKey() {
   const local = lsGet(devKeyName());
   if (local?.key) { S.keyInfo = { ...local, where: "device" }; return; }
-  try { const s = await get(R("secrets/" + S.user.uid)); S.keyInfo = s.exists() ? { ...s.val(), where: "cloud" } : null; }
+  try { const s = await withTimeout(get(R("secrets/" + S.user.uid)), 10000, "timeout"); S.keyInfo = s.exists() ? { ...s.val(), where: "cloud" } : null; }
   catch { S.keyInfo = null; }
 }
 async function saveKey(info, where) {
@@ -723,8 +741,8 @@ onAuthStateChanged(auth, async user => {
   S.isAdmin = !!user && (user.email || "").toLowerCase() === ADMIN_EMAIL;
   if (!user) { document.title = "CV Banao!"; route(); return; }
   view.innerHTML = `<div class="center mt2" style="padding-top:80px"><div class="big floaty">🍳</div><div class="muted mt">Warming up the pan…</div></div>`;
-  try { await ensureProfile(user); }
-  catch (e) { view.innerHTML = `<div class="card mt2"><h2>Database said no 😬</h2><p class="muted">${esc(dbErr(e))}</p><p class="small muted">Admin: make sure the CV Banao database rules are published.</p><button class="btn" id="lo">Log out</button></div>`; $("#lo").onclick = () => signOut(auth); return; }
+  try { await withTimeout(ensureProfile(user), 15000, "Couldn't reach the Realtime Database in 15 seconds."); }
+  catch (e) { console.error("CV Banao DB error:", e); return showDbError(e); }
   await loadKey();
   const uid = user.uid;
   S.unsubs.push(onValue(R("users/" + uid), s => {
@@ -732,13 +750,14 @@ onAuthStateChanged(auth, async user => {
     const was = S.prevPlan; S.profile = p; S.prevPlan = p.plan;
     if (S.profileLoaded && was === "free" && p.plan === "pro") celebratePro();
     S.profileLoaded = true; refreshChrome(); rerender(["", "pro"]);
-  }));
+  }, e => { console.error(e); showDbError(e); }));
   S.unsubs.push(onValue(R("requests/" + uid), s => {
     const r = s.val(); const was = S.prevReqStatus; S.request = r; S.prevReqStatus = r?.status || null;
     if (was === "pending" && r?.status === "rejected") modal({ em: "🧐", title: "Upgrade not approved", html: `<p>${esc(r.note || "We couldn't verify that payment.")}</p><p class="muted small">Double-check your TrxID and try again.</p>`, actions: [{ label: "Fix it", cls: "lime", onClick: () => { location.hash = "#/pro"; } }] });
     rerender(["", "pro"]);
-  }));
-  S.unsubs.push(onValue(R("cvs/" + uid), s => { S.cvs = s.val() || {}; rerender([""]); }));
+  }, e => console.error("requests listener:", e)));
+  S.unsubs.push(onValue(R("cvs/" + uid), s => { S.cvs = s.val() || {}; rerender([""]); }, e => { console.error(e); toast(dbErr(e)); }));
+  setTimeout(() => { if (S.user && S.user.uid === uid && !S.profileLoaded) showDbError(Object.assign(new Error("Your profile didn't load in 15 seconds."), { code: "TIMEOUT" })); }, 15000);
   if (S.isAdmin) startAdminFeed();
   route();
 });
