@@ -486,8 +486,8 @@ const ACCENTS = ["#1F3A5F", "#0F766E", "#6D28D9", "#9F1239", "#111827", "#B45309
 
 /* ================= AI (BYOK) ================= */
 const PROVIDERS = {
-  gemini: { name: "Google Gemini", badge: "FREE · easiest", prefix: "AIza", link: "https://aistudio.google.com/apikey",
-    steps: ["Open Google AI Studio (button below) and sign in with any Gmail.", "Tap <b>Create API key</b> (pick any project if asked).", "Copy the key (starts with <span class='num'>AIza…</span>).", "Paste it here → <b>Test & Save</b>. Done! 🎉"],
+  gemini: { name: "Google Gemini", badge: "FREE · easiest", prefix: "AQ.", prefixes: ["AQ.", "AIza"], link: "https://aistudio.google.com/apikey",
+    steps: ["Open Google AI Studio (button below) and sign in with any Gmail.", "Tap <b>Create API key</b> (pick any project if asked).", "Copy the key (starts with <span class='num'>AQ.</span> or <span class='num'>AIza</span>).", "Paste it here → <b>Test & Save</b>. Done! 🎉"],
     note: "Free tier has rate limits. If it says “quota”, wait a minute and retry." },
   openai: { name: "OpenAI", badge: "Paid", prefix: "sk-", link: "https://platform.openai.com/api-keys",
     steps: ["Open the OpenAI API keys page and sign in.", "Click <b>Create new secret key</b>.", "Add a little billing credit (no credit = errors).", "Paste the key (starts with <span class='num'>sk-</span>) → Test & Save."],
@@ -505,7 +505,7 @@ function aiError(status, body, provider) {
   else if (/location is not supported/i.test(raw)) m = "🌏 Google says this key can't be used from your region. Try another provider.";
   else if (/credit|billing|insufficient/i.test(raw)) m = "💸 Your " + (PROVIDERS[provider]?.name || "AI") + " account needs billing credit.";
   else if (status === 404) m = "🤷 That model isn't available for your key. Pick another model in Key settings.";
-  else if (status >= 500) m = "🤖 The AI server is having a moment. Try again shortly.";
+  else if (status >= 500) m = `🤖 Google/AI servers are overloaded right now (${status}). Wait a minute and retry, or pick another model in AI Key.`;
   else m = "😵 AI said: " + raw;
   const e = new Error(m); e.status = status; e.raw = raw; e.ai = true; return e;
 }
@@ -513,9 +513,9 @@ async function aiFetch(url, opts, provider, timeout = 150000) {
   const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), timeout);
   try {
     let r = await fetch(url, { ...opts, signal: ctl.signal });
-    if ([500, 502, 503, 504, 529].includes(r.status)) { await sleep(1800); r = await fetch(url, { ...opts, signal: ctl.signal }); }
+    if ([500, 502, 503, 504, 529].includes(r.status)) { await sleep(2500); r = await fetch(url, { ...opts, signal: ctl.signal }); }
     let body = null; try { body = await r.json(); } catch {}
-    if (!r.ok) throw aiError(r.status, body, provider);
+    if (!r.ok) { console.error("AI error", r.status, body); throw aiError(r.status, body, provider); }
     return body;
   } catch (e) {
     if (e.ai) throw e;
@@ -529,7 +529,7 @@ async function listModels(provider, key) {
     const j = await aiFetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=${encodeURIComponent(key)}`, {}, provider, 30000);
     return (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent"))
       .map(m => m.name.replace(/^models\//, ""))
-      .filter(n => /gemini/i.test(n) && !/(embed|tts|image|audio|live|vision|aqa|learnlm|robotics|computer|native)/i.test(n));
+      .filter(n => /gemini/i.test(n) && !/(embed|tts|image|audio|live|vision|aqa|learnlm|robotics|computer|native|research|agent|banana|veo|imagen)/i.test(n));
   }
   if (provider === "openai") {
     const j = await aiFetch("https://api.openai.com/v1/models", { headers: { Authorization: "Bearer " + key } }, provider, 30000);
@@ -555,15 +555,33 @@ function defaultModel(provider, models) {
 }
 
 // messages: [{role:'user'|'assistant', text}]
-async function ai({ system, messages, json = false, file = null }) {
+async function ai({ system, messages, json = false, file = null, fast = false, timeout = 150000 }) {
   const k = S.keyInfo;
   if (!k?.key) throw new Error("🔑 Add your AI key first.");
   if (k.provider === "gemini") {
     const contents = messages.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] }));
     if (file) contents[contents.length - 1].parts.push({ inlineData: { mimeType: file.mime, data: file.b64 } });
-    const body = { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { temperature: 0.6, ...(json ? { responseMimeType: "application/json" } : {}) } };
-    const j = await aiFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(k.model)}:generateContent?key=${encodeURIComponent(k.key)}`,
-      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, "gemini");
+    // Try the chosen model first; if Google says it's busy (503/500/429/404), fall back to other models from the key's list.
+    const order = geminiOrder(k);
+    let j, used, lastErr;
+    for (const model of order) {
+      const gen = { temperature: 0.6, ...(json ? { responseMimeType: "application/json" } : {}) };
+      const major = parseInt((model.match(/gemini-(\d+)/) || [0, 0])[1]) || 0;
+      if (fast && major >= 3) gen.thinkingConfig = { thinkingLevel: "low" };   // quick replies for chat
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(k.key)}`;
+      const send = () => aiFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: gen }) }, "gemini", timeout);
+      try {
+        try { j = await send(); }
+        catch (e) { if (gen.thinkingConfig && e.status === 400) { delete gen.thinkingConfig; j = await send(); } else throw e; }
+        used = model; break;
+      } catch (e) {
+        lastErr = e;
+        if (!(e.status >= 500 || e.status === 429 || e.status === 404)) throw e;   // bad key etc. → stop
+      }
+    }
+    if (!used) throw lastErr;
+    if (used !== k.model && S.busyModelNote !== used) { S.busyModelNote = used; toast(`🐢 ${k.model} is busy — used ${used} instead`); }
+    S.liveModel = used;   // start with the model that worked, for the rest of this session
     const cand = j.candidates?.[0];
     const txt = (cand?.content?.parts || []).filter(p => !p.thought).map(p => p.text || "").join("");
     if (!txt) throw new Error(j.promptFeedback?.blockReason || cand?.finishReason === "SAFETY" ? "🙈 The AI refused this one (safety filter). Rephrase a bit and retry." : "🤐 The AI returned nothing. Try again.");
@@ -571,12 +589,22 @@ async function ai({ system, messages, json = false, file = null }) {
   }
   if (k.provider === "openai") {
     const body = { model: k.model, messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))], ...(json ? { response_format: { type: "json_object" } } : {}) };
-    const j = await aiFetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + k.key }, body: JSON.stringify(body) }, "openai");
+    const j = await aiFetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + k.key }, body: JSON.stringify(body) }, "openai", timeout);
     const t = j.choices?.[0]?.message?.content; if (!t) throw new Error("🤐 The AI returned nothing. Try again."); return t;
   }
   const body = { model: k.model, max_tokens: 8000, system, messages: messages.map(m => ({ role: m.role, content: m.text })) };
-  const j = await aiFetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: claudeHeaders(k.key), body: JSON.stringify(body) }, "claude");
+  const j = await aiFetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: claudeHeaders(k.key), body: JSON.stringify(body) }, "claude", timeout);
   const t = (j.content || []).filter(b => b.type === "text").map(b => b.text).join(""); if (!t) throw new Error("🤐 The AI returned nothing. Try again."); return t;
+}
+
+function geminiOrder(k) {
+  const all = [...new Set([...(k.models || []), "gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"])];
+  const okName = m => /flash/.test(m) && !/(preview|exp|thinking|8b|image|tts|live)/.test(m);
+  const fallbacks = all.filter(m => m !== k.model && okName(m))
+    .sort((x, y) => (/lite/.test(x) - /lite/.test(y)) || (ver(y) - ver(x)))   // full flash first (newest → older), lite last
+    .slice(0, 4);
+  const first = S.liveModel && S.liveModel !== k.model ? [S.liveModel] : [];
+  return [...new Set([...first, k.model, ...fallbacks])];
 }
 
 function parseJSON(t) {
@@ -1103,21 +1131,25 @@ function renderChat(body, d) {
   const box = $("#chat");
   const draw = (typing, errMsg) => {
     box.innerHTML = d.chat.map(m => `<div class="msg ${m.role === "user" ? "me" : "bot"}">${esc(m.text)}</div>`).join("")
-      + (typing ? `<div class="msg bot typing"><span></span><span></span><span></span></div>` : "")
+      + (typing ? `<div class="msg bot typing"><span></span><span></span><span></span> <small id="tSec" style="margin-left:6px;font-weight:700"></small></div><div class="msg sys hide" id="slowHint">🐢 Slow today… your model (<b>${esc(S.keyInfo?.model || "")}</b>) is thinking hard. A “flash” model in <a href="#/key">AI Key</a> is faster.</div>` : "")
       + (errMsg ? `<div class="msg sys">${esc(errMsg)} <button class="btn sm" id="retry" style="margin-left:6px">Retry</button></div>` : "");
     box.scrollTop = box.scrollHeight;
     $("#retry") && ($("#retry").onclick = () => ask());
   };
-  let busy = false;
+  let busy = false, tick = null;
   async function ask() {
     if (busy) return; busy = true; draw(true); $("#send").disabled = true;
+    const t0 = Date.now();
+    clearInterval(tick);
+    tick = setInterval(() => { const sec = Math.round((Date.now() - t0) / 1000); const el = $("#tSec"); if (!el) return clearInterval(tick); el.textContent = sec + "s"; if (sec >= 20) $("#slowHint")?.classList.remove("hide"); }, 1000);
     try {
-      const txt = await ai({ system: chatSystem(d), messages: [{ role: "user", text: CHAT_START }, ...d.chat] });
+      const txt = await ai({ system: chatSystem(d), messages: [{ role: "user", text: CHAT_START }, ...d.chat], fast: true, timeout: 90000 });
+      clearInterval(tick);
       const ready = txt.includes("[[READY]]");
       d.chat.push({ role: "assistant", text: txt.replace(/\[\[READY\]\]/g, "").trim() || "Got it! 👍" });
       if (ready) d.chatReady = true;
       saveDraft(); busy = false; renderChat(body, d); $("#cin")?.focus();
-    } catch (e) { busy = false; draw(false, e.message); $("#send").disabled = false; }
+    } catch (e) { clearInterval(tick); busy = false; draw(false, e.message); $("#send").disabled = false; }
   }
   const send = () => {
     const v = $("#cin").value.trim(); if (!v || busy) return;
@@ -1481,7 +1513,7 @@ function renderKey() {
     const key = $("#kIn").value.trim().replace(/\s+/g, ""), where = $("[name=where]:checked").value, err = $("#kErr"); err.textContent = "";
     if (!key) { if (k && k.provider === prov) return toast("Already saved ✅"); return err.textContent = "Paste a key first 👆"; }
     if (key.length < 20) return err.textContent = "That's too short to be a real key 🤨";
-    if (!key.startsWith(P.prefix) && !(await confirmBox("Hmm, that key looks odd", `<p>${P.name} keys usually start with <b class="num">${P.prefix}</b>. Try anyway?</p>`, "Try anyway", "sun"))) return;
+    if (!(P.prefixes || [P.prefix]).some(x => key.startsWith(x)) && !(await confirmBox("Hmm, that key looks odd", `<p>${P.name} keys usually start with <b class="num">${P.prefix}</b>. Try anyway?</p>`, "Try anyway", "sun"))) return;
     const btn = $("#kSave"); btn.disabled = true; btn.textContent = "Testing… 🧪";
     try {
       const models = await listModels(prov, key);
