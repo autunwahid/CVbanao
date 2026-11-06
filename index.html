@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23C8F55A' stroke='%23141414' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle' fill='%23141414'%3ECV%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Hind+Siliguri:wght@500;700&family=Inter:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Hind+Siliguri:wght@500;700&family=Inter:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#FFF6E9;--ink:#141414;--card:#fff;--lime:#C8F55A;--pink:#FF5C8A;--violet:#7B61FF;--sky:#62C7FF;--sun:#FFD54A;
@@ -31,6 +31,7 @@ h1,h2,h3{margin:0;line-height:1.05;letter-spacing:-.02em}
 .wrapf{flex-wrap:wrap}
 .grow{flex:1;min-width:0}
 .muted{color:var(--muted)}
+.flag{font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;font-weight:400}
 .small{font-size:13px}
 .tiny{font-size:12px}
 .center{text-align:center}
@@ -150,6 +151,8 @@ hr.dash{border:0;border-top:2px dashed var(--line);margin:16px 0}
 .paperwrap{position:relative;width:100%;overflow:hidden;border-radius:12px}
 .paper{position:absolute;top:0;left:0;transform-origin:top left;border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);background:#fff}
 .paper.editing{outline:4px dashed var(--violet);outline-offset:6px}
+.paper .cv[contenteditable=true]{outline:none;cursor:text}
+.paper .cv[contenteditable=true]:focus-within{box-shadow:inset 0 0 0 3px #7B61FF55}
 .paper .pb{position:absolute;left:0;right:0;border-top:2px dashed var(--pink);pointer-events:none}
 .paper .pb::after{content:attr(data-l);position:absolute;right:6px;top:-22px;font:700 11px Inter,sans-serif;color:var(--pink);background:#fff;padding:2px 6px;border-radius:6px}
 .sw{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--ink);cursor:pointer;flex:none}
@@ -229,29 +232,16 @@ hr.dash{border:0;border-top:2px dashed var(--line);margin:16px 0}
 .cv.t-uk h1{font-size:32px}
 .cv.t-uk h3{text-transform:none;letter-spacing:0;font-size:16px;border-bottom:1px solid #bbb;color:#111}
 .cv.t-uk .cv-head{color:#444;font-style:italic}
-/* gulf */
-.cv.t-gulf header{display:flex;gap:20px;align-items:center;background:var(--a);color:#fff;border-radius:10px;padding:20px 22px}
-.cv.t-gulf header h1{color:#fff}
-.cv.t-gulf header .cv-head{color:#fff;opacity:.9}
-.cv.t-gulf header .cv-contact,.cv.t-gulf header .cv-contact a{color:#fff;opacity:.85}
-.cv.t-gulf header .cv-photo{border:3px solid #fff;width:100px;height:118px}
-.cv.t-gulf .pbox{background:#f4f6f9;border-radius:8px;padding:10px 14px;margin-top:14px}
+/* gulf & euro: simple single column, photo on the right */
+.cv.t-gulf header,.cv.t-euro header{display:flex;gap:20px;align-items:center;padding-bottom:12px;border-bottom:3px solid var(--a)}
+.cv.t-gulf header .cv-photo,.cv.t-euro header .cv-photo{width:96px;height:114px}
+.cv .pbox{background:#f4f6f9;border-radius:6px;padding:8px 12px;margin-top:12px}
+.cv .pbox dl{grid-template-columns:max-content 1fr max-content 1fr}
+.cv.t-gulf h3{border-bottom:0;border-left:4px solid var(--a);padding:1px 0 1px 8px}
 /* south */
 .cv.t-south header{display:flex;gap:20px;align-items:center;padding-bottom:12px;border-bottom:3px solid var(--a)}
 .cv.t-south h3{background:var(--a);color:#fff;border:0;padding:4px 10px;border-radius:4px;font-size:11.5px}
-/* euro */
-.cv.t-euro{padding:0;display:grid;grid-template-columns:250px 1fr}
-.cv.t-euro aside{background:color-mix(in srgb,var(--a) 9%,#fff);padding:40px 22px;border-right:3px solid var(--a)}
-.cv.t-euro main{padding:40px 34px}
-.cv.t-euro aside .cv-photo{width:150px;height:170px;margin:0 auto 18px;border-radius:10px}
-.cv.t-euro aside h3{font-size:11px}
-.cv.t-euro aside .cv-sec{margin-top:18px}
-.cv.t-euro aside .ci{margin:4px 0;word-break:break-word;font-size:11.5px}
-.cv.t-euro aside dl{grid-template-columns:1fr;gap:0}
-.cv.t-euro aside dt{font-size:10.5px;color:#666;font-weight:600;margin-top:6px}
-.cv.t-euro main{display:flex;flex-direction:column}
-.cv.t-euro main .cv-foot{margin-top:auto;padding-top:8px}
-.cv.t-euro main>section:last-of-type{margin-bottom:22px}
+
 
 /* print */
 #printArea{display:none}
@@ -261,7 +251,6 @@ hr.dash{border:0;border-top:2px dashed var(--line);margin:16px 0}
   body>*:not(#printArea){display:none!important}
   #printArea{display:block!important}
   #printArea .cv{width:auto;min-height:0;padding:0;box-shadow:none}
-  #printArea .cv.t-euro{padding:0}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -400,7 +389,7 @@ function showLoader(lines) {
   hideLoader();
   const l = document.createElement("div");
   l.className = "loader"; l.id = "loader";
-  l.innerHTML = `<div class="blob">🍳</div><div class="line"></div><div class="bar"><i></i></div><div class="small" style="font-weight:700">Don't close this tab, bhai 🙏</div>`;
+  l.innerHTML = `<div class="blob">🍳</div><div class="line"></div><div class="bar"><i></i></div><div class="small" style="font-weight:700">Usually 10–40 seconds. Don't close this tab, bhai 🙏</div>`;
   document.body.appendChild(l);
   let i = 0; const emo = ["🍳", "🤖", "📄", "✨", "🔥", "🧠"];
   const tick = () => { $(".line", l).textContent = lines[i % lines.length]; $(".blob", l).textContent = emo[i % emo.length]; i++; };
@@ -472,7 +461,7 @@ const COUNTRIES = [
 ].map(([code, name, flag, tpl, photo, tip, rules]) => ({ code, name, flag, tpl, photo: !!photo, tip, rules }));
 const country = c => COUNTRIES.find(x => x.code === c) || COUNTRIES[COUNTRIES.length - 1];
 const LANGS = ["English", "Deutsch", "Français", "Polski", "Nederlands", "Español", "Italiano", "Português", "Svenska", "বাংলা"];
-const TEMPLATES = { ats: "🤖 Robot-Friendly", uk: "☕ Tea & Biscuits", euro: "🇪🇺 Euro Sidebar", gulf: "🏙️ Gulf Pro", south: "🪷 Desi Formal" };
+const TEMPLATES = { ats: "🤖 Robot-Friendly", uk: "☕ Tea & Biscuits", euro: "🇪🇺 Euro Clean", gulf: "🏙️ Gulf Pro", south: "🪷 Desi Formal" };
 const PHOTO_TPL = { euro: 1, gulf: 1, south: 1 };
 const ACCENTS = ["#1F3A5F", "#0F766E", "#6D28D9", "#9F1239", "#111827", "#B45309"];
 
@@ -511,7 +500,7 @@ async function aiFetch(url, opts, provider, timeout = 150000) {
     return body;
   } catch (e) {
     if (e.ai) throw e;
-    if (e.name === "AbortError") throw new Error("⏰ The AI took too long. Try again (maybe a shorter input).");
+    if (e.name === "AbortError") throw Object.assign(new Error("⏰ The AI took too long. Try again, or pick a faster model (e.g. a “flash-lite” one) in AI Key."), { status: 408, ai: true });
     throw new Error("📡 Couldn't reach the AI. Check internet / VPN / ad-blocker.");
   } finally { clearTimeout(tm); }
 }
@@ -568,7 +557,7 @@ async function ai({ system, messages, json = false, file = null, fast = false, t
         used = model; break;
       } catch (e) {
         lastErr = e;
-        if (!(e.status >= 500 || e.status === 429 || e.status === 404)) throw e;   // bad key etc. → stop
+        if (!(e.status >= 500 || e.status === 429 || e.status === 404 || e.status === 408)) throw e;   // bad key etc. → stop
       }
     }
     if (!used) throw lastErr;
@@ -581,6 +570,7 @@ async function ai({ system, messages, json = false, file = null, fast = false, t
   }
   if (k.provider === "openai") {
     const body = { model: k.model, messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))], ...(json ? { response_format: { type: "json_object" } } : {}) };
+    if (fast && /^(o\d|gpt-5)/.test(k.model)) body.reasoning_effort = "low";
     const j = await aiFetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + k.key }, body: JSON.stringify(body) }, "openai", timeout);
     const t = j.choices?.[0]?.message?.content; if (!t) throw new Error("🤐 The AI returned nothing. Try again."); return t;
   }
@@ -594,7 +584,7 @@ function geminiOrder(k) {
   const okName = m => /flash/.test(m) && !/(preview|exp|thinking|8b|image|tts|live)/.test(m);
   const fallbacks = all.filter(m => m !== k.model && okName(m))
     .sort((x, y) => (/lite/.test(x) - /lite/.test(y)) || (ver(y) - ver(x)))   // full flash first (newest → older), lite last
-    .slice(0, 4);
+    .slice(0, 3);
   const first = S.liveModel && S.liveModel !== k.model ? [S.liveModel] : [];
   return [...new Set([...first, k.model, ...fallbacks])];
 }
@@ -608,34 +598,29 @@ function parseJSON(t) {
 }
 
 const CV_SCHEMA = `{
- "meta": {"jobTitle": "target role from the JD", "company": "company from the JD or ''", "matchScore": 0-100 integer honest fit of the candidate's REAL background to the JD, "missingKeywords": ["important JD keywords the candidate genuinely lacks (max 8)"], "tips": ["max 4 short actionable tips"], "roast": "one short, funny but kind line about the candidate's original material"},
- "labels": {"summary":"","experience":"","education":"","skills":"","projects":"","certifications":"","languages":"","awards":"","personal":""},
- "basics": {"name":"","headline":"","email":"","phone":"","location":"","links":[{"label":"LinkedIn","url":""}]},
- "personal": [{"label":"Nationality","value":""}],
+ "meta": {"jobTitle":"role from the JD","company":"company from the JD or ''","matchScore":0-100 integer,"missingKeywords":["max 6 JD keywords the candidate lacks"]},
+ "labels": {"summary":"","experience":"","education":"","skills":"","certifications":"","languages":"","personal":""},
+ "basics": {"name":"","headline":"","email":"","phone":"","location":"","links":[{"label":"","url":""}]},
+ "personal": [{"label":"","value":""}],
  "summary": "",
  "skills": [{"group":"","items":[""]}],
  "experience": [{"role":"","company":"","location":"","start":"","end":"","bullets":[""]}],
  "education": [{"degree":"","school":"","location":"","start":"","end":"","details":""}],
- "projects": [{"name":"","description":"","link":""}],
  "certifications": [{"name":"","issuer":"","date":""}],
  "languages": [{"name":"","level":""}],
- "awards": [""],
- "extra": [{"title":"","items":[""]}],
+ "projects": [{"name":"","description":"","link":""}],
  "footer": ""
 }`;
-const CV_SYSTEM = `You are a world-class CV writer and ATS expert working inside the app "CV Banao!".
-Write a tailored, recruiter-ready CV for the target job and country.
-HARD RULES:
-- NEVER invent employers, job titles, dates, degrees, schools, certifications, awards or numbers. Only use facts from the candidate's material.
-- You MAY rephrase, reorder, merge, trim and emphasise truthfully. Mirror JD keywords only where the candidate genuinely has that experience.
-- If a strong bullet needs a metric the candidate did not give, insert a short square-bracket placeholder like [X%] or [number] for them to fill (max 6 placeholders total).
-- Missing contact info -> empty string. Omit empty sections (empty arrays).
-- Reverse-chronological. Start bullets with strong action verbs. 3-6 bullets for recent roles, 1-3 for older ones.
-- Follow the country conventions exactly (photo, personal details, length, spelling, extra clauses).
-- "labels" are section headings written in the CV language and following the country's convention (e.g. "Career Objective" for Bangladesh, "Personal Profile" for UK, "Profil" in German).
-- "personal" only if the country convention expects it AND the data exists in the source.
-- Write everything (except names, emails, URLs) in the requested CV language.
-- Output ONLY valid JSON matching this schema, no markdown, no commentary:
+const CV_SYSTEM = `You are an expert CV writer. Match the candidate's material to the job description and write a concise, ATS-friendly CV following the target country's conventions.
+RULES:
+- Use ONLY facts from the candidate's material. Never invent employers, titles, dates, degrees, certifications or numbers.
+- Rephrase and reorder truthfully; use JD keywords only where the candidate really has that experience.
+- If a bullet needs a metric that wasn't given, write a placeholder like [X%] (max 4 in total).
+- Be concise: summary max 3 sentences; max 5 bullets for recent roles, 2 for older ones; each bullet one line.
+- Empty/unknown fields -> "" or []. "personal" only if the country expects it and the data exists.
+- "labels" = section headings in the CV language, following the country's convention.
+- Write in the requested CV language.
+- Return ONLY valid JSON in this shape:
 ${CV_SCHEMA}`;
 
 function normCV(c) {
@@ -698,14 +683,9 @@ function renderCV(cv, tpl, photo) {
   const nameBlock = `<h1>${T(b.name || "Your Name")}</h1>${b.headline ? `<div class="cv-head">${T(b.headline)}</div>` : ""}`;
   const contactLine = contactBits.length ? `<div class="cv-contact">${contactBits.join(" &nbsp;·&nbsp; ")}</div>` : "";
 
-  if (tpl === "euro") {
-    const contactSide = contactBits.length ? `<section class="cv-sec"><h3>Contact</h3>${contactBits.map(c => `<div class="ci">${c}</div>`).join("")}</section>` : "";
-    return `<div class="cv t-euro"><aside>${photoImg}${contactSide}${personalDl ? sec(L.personal, personalDl) : ""}${skillsTags ? sec(L.skills, skillsTags) : ""}${cv.languages.length ? sec(L.languages, langsTxt.map(t => `<div class="ci">${T(t)}</div>`).join("")) : ""}</aside>
-      <main><header>${nameBlock}</header>${summary}${exp}${edu}${proj}${certs}${awards}${extra}${foot}</main></div>`;
-  }
-  if (tpl === "gulf") {
-    return `<div class="cv t-gulf"><header><div class="grow" style="flex:1">${nameBlock}${contactLine}</div>${photoImg}</header>
-      ${personalDl ? `<div class="pbox">${personalDl}</div>` : ""}${summary}${exp}${skillsList ? sec(L.skills, skillsList) : ""}${edu}${proj}${certs}${langs}${awards}${extra}${foot}</div>`;
+  if (tpl === "euro" || tpl === "gulf") {
+    return `<div class="cv t-${tpl}"><header><div style="flex:1">${nameBlock}${contactLine}</div>${photoImg}</header>
+      ${personalDl ? `<div class="pbox">${personalDl}</div>` : ""}${summary}${exp}${edu}${skillsList ? sec(L.skills, skillsList) : ""}${langs}${certs}${proj}${awards}${extra}${foot}</div>`;
   }
   if (tpl === "south") {
     return `<div class="cv t-south"><header>${photoImg}<div style="flex:1">${nameBlock}${contactLine}</div></header>
@@ -882,7 +862,7 @@ function renderAuth() {
   view.innerHTML = `
   <div class="hero">
     <div>
-      <div class="row" style="gap:12px"><span class="logo"><span class="mark">CV</span></span><span class="pill sun">🇧🇩 Made in Dhaka</span></div>
+      <div class="row" style="gap:12px"><span class="logo"><span class="mark">CV</span></span><span class="pill sun"><span class="flag">🇧🇩</span> Made in Dhaka</span></div>
       <h1 class="mt2">CV<br>Banao<span class="bang">!</span></h1>
       <p style="font-size:clamp(18px,4vw,24px);font-weight:600;margin:16px 0 18px;max-width:460px">HR reads your CV in 6 seconds. Let's make them count. ⏱️</p>
       <div class="feat"><span class="pill lime">📋 Paste a job</span><span class="pill sky">🌍 Pick a country</span><span class="pill pink">🤖 AI cooks</span><span class="pill">📄 PDF ready</span></div>
@@ -940,7 +920,7 @@ function renderHome() {
       <div class="newcard" id="newCv"><div><div class="plusbig">＋</div><div style="font-size:20px">New CV</div><div class="small muted" style="font-weight:600">${canCreate() ? "Paste a job. Get hired. Easy." : "🔒 Go PRO to unlock"}</div></div></div>
       ${list.map(([id, c]) => { const co = country(c.country); return `
         <div class="card cvcard" data-id="${id}">
-          <div class="row between"><span style="font-size:28px">${co.flag}</span>${c.score ? `<span class="pill ${c.score >= 75 ? "lime" : c.score >= 50 ? "sun" : "pink"}">${c.score}% match</span>` : ""}</div>
+          <div class="row between"><span class="flag" style="font-size:28px">${co.flag}</span>${c.score ? `<span class="pill ${c.score >= 75 ? "lime" : c.score >= 50 ? "sun" : "pink"}">${c.score}% match</span>` : ""}</div>
           <h3>${esc(c.title || "Untitled CV")}</h3>
           <div class="small muted" style="margin-top:auto">${esc(co.name)} · ${ago(c.updatedAt)}</div>
         </div>`; }).join("")}
@@ -1005,10 +985,10 @@ function stepCountry(el, d) {
     <div class="row wrapf mt"><label class="lbl" for="lang" style="margin:0">CV language</label><select id="lang" style="width:auto;flex:1;max-width:220px">${LANGS.map(l => `<option ${l === d.lang ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     <div class="row mt" style="justify-content:flex-end"><button class="btn lime" id="next">Next →</button></div>`;
   const draw = q => {
-    $("#cg").innerHTML = COUNTRIES.filter(c => !q || (c.name + c.code).toLowerCase().includes(q.toLowerCase())).map(c => `<button class="cbtn ${c.code === d.country ? "on" : ""}" data-c="${c.code}"><span class="f">${c.flag}</span>${esc(c.name)}</button>`).join("") || `<p class="muted">No match. Try “Anywhere / Remote”.</p>`;
+    $("#cg").innerHTML = COUNTRIES.filter(c => !q || (c.name + c.code).toLowerCase().includes(q.toLowerCase())).map(c => `<button class="cbtn ${c.code === d.country ? "on" : ""}" data-c="${c.code}"><span class="f flag">${c.flag}</span>${esc(c.name)}</button>`).join("") || `<p class="muted">No match. Try “Anywhere / Remote”.</p>`;
     $$("#cg .cbtn").forEach(b => b.onclick = () => { d.country = b.dataset.c; saveDraft(); draw($("#cq").value); tip(); });
   };
-  const tip = () => { const c = d.country && country(d.country); $("#ctip").innerHTML = c ? `<div class="card lime" style="padding:12px 14px"><b>${c.flag} ${esc(c.name)}:</b> ${esc(c.tip)}</div>` : ""; };
+  const tip = () => { const c = d.country && country(d.country); $("#ctip").innerHTML = c ? `<div class="card lime" style="padding:12px 14px"><b><span class="flag">${c.flag}</span> ${esc(c.name)}:</b> ${esc(c.tip)}</div>` : ""; };
   draw(""); tip();
   $("#cq").oninput = e => draw(e.target.value);
   $("#lang").onchange = e => { d.lang = e.target.value; saveDraft(); };
@@ -1100,7 +1080,7 @@ function stepReview(el, d) {
   el.innerHTML = `<div class="qtitle">Ready to cook? 🔥</div>
     <div class="col mt">
       <div class="card" style="padding:14px"><b>📋 Job</b><div class="small muted" style="margin-top:4px">${esc(d.jd.slice(0, 160))}…</div></div>
-      <div class="card" style="padding:14px"><b>${c.flag} ${esc(c.name)}</b> <span class="muted small">· ${esc(d.lang)} · ${esc(c.tip)}</span></div>
+      <div class="card" style="padding:14px"><b><span class="flag">${c.flag}</span> ${esc(c.name)}</b> <span class="muted small">· ${esc(d.lang)} · ${esc(c.tip)}</span></div>
       <div class="card" style="padding:14px"><b>${src}</b>${srcOk ? "" : `<div class="err small">Missing! Go back and add it.</div>`}</div>
       <div class="card ${isPro() ? "violet" : "sun"}" style="padding:14px">${isPro() ? "😎 PRO — unlimited CVs." : `🎟️ This uses <b>1 of your ${freeLeft()}</b> free CV${freeLeft() === 1 ? "" : "s"}.`} <span class="small muted">AI runs on your ${esc(PROVIDERS[S.keyInfo.provider]?.name)} key.</span></div>
     </div>
@@ -1120,19 +1100,20 @@ TARGET COUNTRY: ${c.name}
 COUNTRY CONVENTIONS: ${c.rules}
 CV LANGUAGE: ${d.lang}
 JOB DESCRIPTION:
-"""${d.jd.slice(0, 15000)}"""
+"""${d.jd.slice(0, 8000)}"""
 
-${src.slice(0, 30000)}
+${src.slice(0, 15000)}
 ${d.notes.trim() ? "\nEXTRA NOTES FROM CANDIDATE (true, newer facts):\n" + d.notes.trim() : ""}
 
 Return ONLY the JSON object.`;
 }
 
 async function aiCV(system, user, file) {
-  try { return normCV(parseJSON(await ai({ system, messages: [{ role: "user", text: user }], json: true, file }))); }
+  const opts = { system, json: true, file, fast: true, timeout: 75000 };
+  try { return normCV(parseJSON(await ai({ ...opts, messages: [{ role: "user", text: user }] }))); }
   catch (e) {
     if (!e.badJson) throw e;
-    const txt = await ai({ system, messages: [{ role: "user", text: user + "\n\nIMPORTANT: Your previous answer was not valid JSON. Return ONLY compact valid JSON, keep bullets concise." }], json: true, file });
+    const txt = await ai({ ...opts, messages: [{ role: "user", text: user + "\n\nIMPORTANT: Your previous answer was not valid JSON. Return ONLY compact valid JSON, keep bullets concise." }] });
     try { return normCV(parseJSON(txt)); } catch { throw new Error("🤪 The AI returned gibberish twice. Try again or pick another model in Key settings."); }
   }
 }
@@ -1200,7 +1181,7 @@ function renderEditor(id) {
     <input id="ttl" class="mt" value="${esc(rec.title || "")}" maxlength="120" style="font-size:22px;font-weight:800;border-width:0 0 2.5px;border-radius:0;background:transparent;padding:8px 2px">
     <div class="card mt ${sc >= 75 ? "lime" : sc >= 50 ? "sun" : "pink"}" style="padding:14px">
       <div class="score"><div class="ring" style="--p:${sc}"><b>${sc}</b></div>
-        <div class="grow"><b>ATS vibe check</b> <span class="small">${c.flag} ${esc(c.name)}</span>
+        <div class="grow"><b>ATS vibe check</b> <span class="small"><span class="flag">${c.flag}</span> ${esc(c.name)}</span>
         ${cv.meta.roast ? `<div class="small" style="margin-top:4px">“${esc(cv.meta.roast)}”</div>` : ""}</div></div>
       ${cv.meta.missingKeywords.length ? `<div class="small mt" style="font-weight:800">You don't (yet) have:</div><div class="kw mt" style="margin-top:6px">${cv.meta.missingKeywords.map(k => `<span class="pill">${esc(k)}</span>`).join("")}</div>` : ""}
       ${cv.meta.tips.length ? `<details class="mt"><summary class="small" style="font-weight:800;cursor:pointer">💡 Tips</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${cv.meta.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul></details>` : ""}
@@ -1208,7 +1189,6 @@ function renderEditor(id) {
     <div class="edbar mt">
       <button class="btn sm lime" id="dlPdf">⬇️ PDF</button>
       <button class="btn sm" id="dlDoc">📝 Word</button>
-      <button class="btn sm" id="editT">✏️ Edit text</button>
       <button class="btn sm" id="photoB" ${PHOTO_TPL[rec.tpl] ? "" : "hidden"}>📷 Photo</button>
       <button class="btn sm sky" id="cover">✉️ Cover letter</button>
       <button class="btn sm" id="dup">⧉ Duplicate</button>
@@ -1220,7 +1200,7 @@ function renderEditor(id) {
       <div class="composer"><input id="tweak" placeholder="🪄 Tell AI: “shorter summary”, “more leadership vibes”…" maxlength="500"><button class="btn violet sm" id="tweakGo" style="min-height:48px">Do it</button></div>
       <div class="row wrapf mt" style="gap:6px">${["Make it shorter ✂️", "More numbers 📈", "More formal 🎩", "Fix grammar 🧐", "Fit on 1 page 📄"].map(t => `<button class="chip qt">${t}</button>`).join("")}</div>
     </div>
-    <p class="tiny muted mt" id="phNote"></p>
+    <p class="small mt" id="phNote" style="font-weight:700"></p>
     <div class="paperwrap mt" id="pwrap"><div class="paper" id="paper" style="--cv-acc:${esc(rec.accent || ACCENTS[0])}"></div></div>
     <input type="file" id="photoIn" accept="image/*" hidden>`;
   drawPaper();
@@ -1234,15 +1214,6 @@ function renderEditor(id) {
     drawPaper(); saveNow({ tpl: E.rec.tpl, html: null });
   });
   $$("[data-acc]").forEach(b => b.onclick = () => { E.rec.accent = b.dataset.acc; $$("[data-acc]").forEach(x => x.classList.toggle("on", x === b)); $("#paper").style.setProperty("--cv-acc", E.rec.accent); saveNow({ accent: E.rec.accent }); });
-  $("#editT").onclick = () => {
-    E.editing = !E.editing;
-    const inner = $("#paper .cv");
-    inner.contentEditable = E.editing ? "true" : "false";
-    $("#paper").classList.toggle("editing", E.editing);
-    $("#editT").textContent = E.editing ? "✅ Done editing" : "✏️ Edit text";
-    $("#editT").classList.toggle("violet", E.editing);
-    if (E.editing) { toast("✏️ Tap anywhere on the CV to edit"); inner.focus(); } else flushEditor();
-  };
   $("#photoB").onclick = () => {
     if (E.rec.photo) modal({ em: "📷", title: "Photo", html: `<img src="${esc(E.rec.photo)}" style="width:120px;border-radius:10px;border:var(--b)">`, actions: [{ label: "Remove", cls: "pink", onClick: () => setPhoto(null) }, { label: "Change", cls: "lime", onClick: () => $("#photoIn").click() }] });
     else $("#photoIn").click();
@@ -1286,9 +1257,10 @@ function drawPaper() {
   const paper = $("#paper");
   paper.innerHTML = E.rec.html ? sanitize(E.rec.html) : renderCV(E.cv, E.rec.tpl, E.rec.photo);
   const inner = $(".cv", paper);
+  if (inner) { inner.contentEditable = "true"; inner.spellcheck = true; }
   if (inner) inner.addEventListener("input", () => { E.dirty = true; $("#saveSt").textContent = "Typing…"; clearTimeout(E.timer); E.timer = setTimeout(flushEditor, 1200); fitPaper(); });
   const ph = (paper.textContent.match(/\[[^\]\n]{1,40}\]/g) || []).length;
-  $("#phNote").innerHTML = ph ? `🟨 ${ph} yellow <b>[placeholder${ph > 1 ? "s" : ""}]</b> — tap ✏️ Edit text and fill in your real numbers.` : "";
+  $("#phNote").innerHTML = (ph ? `🟨 ${ph} yellow <b>[placeholder${ph > 1 ? "s" : ""}]</b> — replace with your real numbers. ` : "") + "✏️ Click any text on the CV to edit · saves automatically";
   fitPaper();
 }
 function fitPaper() {
@@ -1325,7 +1297,7 @@ function flushEditor() {
   if (E.rec.html.length > 900000) return toast("😮 That's a huge CV. Not saved — trim some text.");
   saveNow({ html: E.rec.html });
   const ph = (inner.textContent.match(/\[[^\]\n]{1,40}\]/g) || []).length;
-  $("#phNote") && ($("#phNote").innerHTML = ph ? `🟨 ${ph} <b>[placeholder${ph > 1 ? "s" : ""}]</b> left to fill.` : "");
+  $("#phNote") && ($("#phNote").innerHTML = (ph ? `🟨 ${ph} <b>[placeholder${ph > 1 ? "s" : ""}]</b> left to fill. ` : "") + "✏️ Click any text on the CV to edit · saves automatically");
 }
 window.addEventListener("beforeunload", flushEditor);
 document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flushEditor());
