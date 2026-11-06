@@ -133,22 +133,14 @@ hr.dash{border:0;border-top:2px dashed var(--line);margin:16px 0}
 .opt:hover{transform:rotate(-1deg)}
 .opt.on{background:var(--lime)}
 .opt .e{font-size:36px}
-.drop{border:3px dashed var(--ink);border-radius:var(--r);padding:26px;text-align:center;background:#fff;cursor:pointer}
+.drop{display:block;border:3px dashed var(--ink);border-radius:var(--r);padding:32px 20px;text-align:center;background:#fff;cursor:pointer;transition:background .15s,transform .15s}
+.drop:hover{background:var(--lime);transform:rotate(-.5deg)}
+.drop b{display:block;font-size:19px;margin:6px 0 2px}
 .drop.over{background:var(--sky)}
 
-/* chat */
-.chat{display:flex;flex-direction:column;gap:10px;max-height:52vh;overflow:auto;padding:6px 4px 10px}
-.msg{max-width:86%;padding:10px 14px;border:2px solid var(--ink);border-radius:18px;white-space:pre-wrap;word-break:break-word;font-size:15px}
-.msg.bot{background:#fff;border-bottom-left-radius:4px;align-self:flex-start}
-.msg.me{background:var(--violet);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
-.msg.sys{align-self:center;background:var(--sun);font-size:13px;font-weight:700}
-.typing span{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ink);margin:0 2px;animation:bl 1s infinite}
-.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
-@keyframes bl{50%{opacity:.2;transform:translateY(-3px)}}
-.composer{display:flex;gap:8px;align-items:flex-end}
-.composer textarea{min-height:48px;max-height:140px;height:48px}
 
 /* editor */
+.composer{display:flex;gap:8px;align-items:center}
 .edbar{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}
 .edbar::-webkit-scrollbar{display:none}
 .score{display:flex;gap:14px;align-items:center}
@@ -979,8 +971,8 @@ function startNew() {
 
 /* ================= BUILDER ================= */
 const draftKey = () => "cvb_draft_" + S.user.uid;
-const newDraft = () => ({ step: 1, jd: "", country: "", lang: "English", mode: "", sourceText: "", fileName: "", chat: [], chatReady: false, notes: "" });
-function D() { if (!S.draft) S.draft = { ...newDraft(), ...(lsGet(draftKey()) || {}) }; return S.draft; }
+const newDraft = () => ({ step: 1, jd: "", country: "", lang: "English", mode: "", sourceText: "", fileName: "", notes: "" });
+function D() { if (!S.draft) { S.draft = { ...newDraft(), ...(lsGet(draftKey()) || {}) }; if (!["upload", "paste"].includes(S.draft.mode)) S.draft.mode = ""; } return S.draft; }
 function saveDraft() { lsSet(draftKey(), S.draft); }
 
 function renderBuilder() {
@@ -1025,8 +1017,8 @@ function stepCountry(el, d) {
 
 function stepSource(el, d) {
   const opt = (m, e, t, s) => `<button class="card opt ${d.mode === m ? "on" : ""}" data-m="${m}"><div class="e">${e}</div><b style="font-size:19px">${t}</b><div class="small muted">${s}</div></button>`;
-  el.innerHTML = `<div class="qtitle">Now… you 🫵</div><p class="muted" style="margin:6px 0 14px">Got an old CV? Or chat with our bot.</p>
-    <div class="opts">${opt("upload", "📄", "Upload CV", "PDF, DOCX, TXT")}${opt("paste", "✍️", "Paste text", "Copy-paste works")}${opt("chat", "💬", "Chat it out", "Bot asks, you answer")}</div>
+  el.innerHTML = `<div class="qtitle">Now… you 🫵</div><p class="muted" style="margin:6px 0 14px">Give us your old CV. We'll glow it up. ✨</p>
+    <div class="opts">${opt("upload", "📄", "Upload CV", "PDF, DOCX, TXT")}${opt("paste", "✍️", "Paste text", "Copy-paste works")}</div>
     <div id="srcBody" class="mt2"></div>`;
   $$(".opt").forEach(b => b.onclick = () => { d.mode = b.dataset.m; saveDraft(); stepSource(el, d); });
   const body = $("#srcBody");
@@ -1061,8 +1053,6 @@ function stepSource(el, d) {
     $("#ptxt").oninput = e => { d.sourceText = e.target.value; d.fileName = ""; S.fileInline = null; saveDraft(); };
     bindNotes();
     $("#next").onclick = () => { if (d.sourceText.trim().length < 60) return toast("✍️ Paste a bit more about yourself (60+ chars)"); go(4); };
-  } else if (d.mode === "chat") {
-    renderChat(body, d);
   } else body.innerHTML = `<p class="center muted" style="font-weight:600">👆 Pick one</p>`;
 }
 
@@ -1100,78 +1090,13 @@ async function extractFile(f) {
     const mime = ext === "pdf" ? "application/pdf" : ext === "jpg" ? "image/jpeg" : "image/" + ext;
     return { text: "", inline: { mime, b64: await toB64(f) } };
   }
-  throw new Error("🖼️ This looks like a scanned image — no text inside. Paste the text, use chat, or use a Gemini key (it can read images).");
-}
-
-/* --- chat --- */
-function chatSystem(d) {
-  const c = country(d.country);
-  const extra = c.tpl === "gulf" ? "nationality, visa status, notice period" : (c.tpl === "south" || c.tpl === "euro") ? "nationality, date of birth (optional)" : "";
-  return `You are "Banao Bot", a witty, warm CV interviewer inside the app CV Banao!.
-Goal: collect facts to build a CV for this job in ${c.name} (CV language: ${d.lang}).
-JOB DESCRIPTION (excerpt):
-"""${d.jd.slice(0, 3500)}"""
-RULES:
-- Ask ONE question per message. Max 2 short sentences. Light humour (a dash of Banglish is fine), never rude or cringe.
-- Collect in order: full name; email, phone, city; LinkedIn/portfolio (optional); current or last job title; for EACH job: title, company, city, dates, what they did, results with numbers; education; key skills relevant to the JD; certifications; languages${extra ? "; " + extra : ""}.
-- If an answer is vague, ask one follow-up that pushes for impact and numbers.
-- Do NOT write the CV yourself. If the user says "skip", move on.
-- When you have enough for a strong CV (or the user says done/finish), reply with a short cheerful wrap-up and end your message with the exact token [[READY]].`;
-}
-const CHAT_START = "(Start the interview now. Greet me in one short funny line, then ask your first question.)";
-function renderChat(body, d) {
-  const userTurns = d.chat.filter(m => m.role === "user").length;
-  body.innerHTML = `<div class="card" style="padding:12px">
-      <div class="row between" style="margin-bottom:6px"><b>🤖 Banao Bot</b><button class="btn ghost sm" id="chatReset">↺ Restart chat</button></div>
-      <div class="chat" id="chat"></div>
-      <div class="composer mt"><textarea id="cin" placeholder="Type your answer…" maxlength="2000" rows="1"></textarea><button class="btn violet iconbtn" id="send" aria-label="Send" style="width:48px;height:48px">➤</button></div>
-    </div>
-    <div class="row between mt wrapf"><span class="small muted">${d.chatReady ? "✅ Bot has enough info!" : userTurns < 3 ? "Answer a few questions first…" : "Say “done” anytime."}</span>
-      <button class="btn ${d.chatReady ? "lime" : ""}" id="next" ${userTurns < 3 ? "disabled" : ""}>Build my CV →</button></div>`;
-  const box = $("#chat");
-  const draw = (typing, errMsg) => {
-    box.innerHTML = d.chat.map(m => `<div class="msg ${m.role === "user" ? "me" : "bot"}">${esc(m.text)}</div>`).join("")
-      + (typing ? `<div class="msg bot typing"><span></span><span></span><span></span> <small id="tSec" style="margin-left:6px;font-weight:700"></small></div><div class="msg sys hide" id="slowHint">🐢 Slow today… your model (<b>${esc(S.keyInfo?.model || "")}</b>) is thinking hard. A “flash” model in <a href="#/key">AI Key</a> is faster.</div>` : "")
-      + (errMsg ? `<div class="msg sys">${esc(errMsg)} <button class="btn sm" id="retry" style="margin-left:6px">Retry</button></div>` : "");
-    box.scrollTop = box.scrollHeight;
-    $("#retry") && ($("#retry").onclick = () => ask());
-  };
-  let busy = false, tick = null;
-  async function ask() {
-    if (busy) return; busy = true; draw(true); $("#send").disabled = true;
-    const t0 = Date.now();
-    clearInterval(tick);
-    tick = setInterval(() => { const sec = Math.round((Date.now() - t0) / 1000); const el = $("#tSec"); if (!el) return clearInterval(tick); el.textContent = sec + "s"; if (sec >= 20) $("#slowHint")?.classList.remove("hide"); }, 1000);
-    try {
-      const txt = await ai({ system: chatSystem(d), messages: [{ role: "user", text: CHAT_START }, ...d.chat], fast: true, timeout: 90000 });
-      clearInterval(tick);
-      const ready = txt.includes("[[READY]]");
-      d.chat.push({ role: "assistant", text: txt.replace(/\[\[READY\]\]/g, "").trim() || "Got it! 👍" });
-      if (ready) d.chatReady = true;
-      saveDraft(); busy = false; renderChat(body, d); $("#cin")?.focus();
-    } catch (e) { clearInterval(tick); busy = false; draw(false, e.message); $("#send").disabled = false; }
-  }
-  const send = () => {
-    const v = $("#cin").value.trim(); if (!v || busy) return;
-    if (d.chat.length && d.chat[d.chat.length - 1].role === "user") d.chat[d.chat.length - 1].text += "\n" + v; // previous reply failed: merge
-    else d.chat.push({ role: "user", text: v });
-    if (d.chat.length > 80) return toast("🗣️ That's a lot of chatting! Hit “Build my CV”.");
-    $("#cin").value = ""; saveDraft(); ask();
-  };
-  $("#send").onclick = send;
-  $("#cin").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
-  $("#cin").oninput = e => { e.target.style.height = "48px"; e.target.style.height = Math.min(140, e.target.scrollHeight) + "px"; };
-  $("#chatReset").onclick = async () => { if (await confirmBox("Restart chat?", "<p>The bot forgets everything. Like a goldfish. 🐟</p>", "Restart")) { d.chat = []; d.chatReady = false; saveDraft(); renderChat(body, d); } };
-  $("#next").onclick = () => go(4);
-  if (!d.chat.length) ask();
-  else if (d.chat[d.chat.length - 1].role === "user") draw(false, "Bot didn't reply last time.");
-  else draw();
+  throw new Error("🖼️ This looks like a scanned image — no text inside. Use “Paste text”, or a Gemini key (it can read images).");
 }
 
 function stepReview(el, d) {
   const c = country(d.country);
-  const src = d.mode === "chat" ? `💬 Chat (${d.chat.filter(m => m.role === "user").length} answers)` : d.mode === "upload" ? `📄 ${esc(d.fileName || "Uploaded file")}` : "✍️ Pasted text";
-  const srcOk = d.mode === "chat" ? d.chat.some(m => m.role === "user") : d.mode === "upload" ? !!(d.sourceText || S.fileInline) : d.sourceText.trim().length >= 60;
+  const src = d.mode === "upload" ? `📄 ${esc(d.fileName || "Uploaded file")}` : "✍️ Pasted text";
+  const srcOk = d.mode === "upload" ? !!(d.sourceText || S.fileInline) : d.sourceText.trim().length >= 60;
   el.innerHTML = `<div class="qtitle">Ready to cook? 🔥</div>
     <div class="col mt">
       <div class="card" style="padding:14px"><b>📋 Job</b><div class="small muted" style="margin-top:4px">${esc(d.jd.slice(0, 160))}…</div></div>
@@ -1188,8 +1113,7 @@ const COOK_LINES = ["Reading the job post like it's a love letter 💌", "Removi
 function buildUserPrompt(d) {
   const c = country(d.country);
   let src;
-  if (d.mode === "chat") src = "INTERVIEW TRANSCRIPT (Bot = interviewer, Candidate = the person):\n" + d.chat.map(m => (m.role === "user" ? "Candidate: " : "Bot: ") + m.text).join("\n");
-  else if (d.mode === "upload" && !d.sourceText && S.fileInline) src = "The candidate's existing CV is attached as a file. Read it carefully.";
+  if (d.mode === "upload" && !d.sourceText && S.fileInline) src = "The candidate's existing CV is attached as a file. Read it carefully.";
   else src = "CANDIDATE'S EXISTING CV / MATERIAL:\n" + d.sourceText;
   return `TODAY: ${today()}
 TARGET COUNTRY: ${c.name}
@@ -1520,7 +1444,7 @@ function renderKey() {
       if (!models.length) throw new Error("Key works, but no usable text models found for it 🤷");
       const model = defaultModel(prov, models);
       await saveKey({ provider: prov, key, model, models: models.slice(0, 60) }, where);
-      S.keyProv = null; toast(`✅ Key works! Using ${model}`, true); renderKey();
+      S.keyProv = null; toast(`✅ Key works! Using ${model}`, true); location.hash = "#/";
     } catch (e) { err.textContent = e.message; btn.disabled = false; btn.textContent = "Test & Save ⚡"; }
   };
 }
