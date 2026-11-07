@@ -85,7 +85,10 @@ hr.dash{border:0;border-top:2px dashed var(--line);margin:16px 0}
 .pulse{animation:pulse 1.6s ease-in-out infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 6px #62C7FF66,var(--sh-sm)}}
 .vid{position:relative;padding-top:56.25%;border:var(--b);border-radius:16px;overflow:hidden;background:#000}
-.vid.short{padding-top:0;height:min(70vh,640px);aspect-ratio:9/16;margin:0 auto;max-width:100%}
+.vid.short{padding-top:0;width:min(100%,calc(66vh * 9 / 16),380px);aspect-ratio:9/16;margin:0 auto}
+.vid.short iframe{border-radius:12px}
+.mbg .modal.vmodal{max-width:440px;padding:18px}
+.mbg .modal.vmodal h2{font-size:22px;margin-bottom:10px}
 .vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .avatar{width:42px;height:42px;border-radius:50%;border:var(--b);background:var(--sun);font-weight:900;display:grid;place-items:center;cursor:pointer;box-shadow:var(--sh-sm)}
 
@@ -752,11 +755,15 @@ function playTutorial() {
   const t = S.tutorial; if (!t?.id) return;
   lsSet(tutSeenKey(t.id), 1);
   const watch = t.short ? `https://www.youtube.com/shorts/${t.id}` : `https://www.youtube.com/watch?v=${t.id}`;
-  modal({ wide: true, title: "How to use 🎬",
-    html: `<div class="vid ${t.short ? "short" : ""}"><iframe src="https://www.youtube-nocookie.com/embed/${esc(t.id)}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="How to use 50 Shades of CV" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+  const vert = isVertical(t);
+  const m = modal({ wide: !vert, title: "How to use 🎬",
+    html: `<div class="vid ${vert ? "short" : ""}"><iframe src="https://www.youtube-nocookie.com/embed/${esc(t.id)}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="How to use 50 Shades of CV" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
       <p class="small muted mt center">Video not playing? <a href="${watch}" target="_blank" rel="noopener"><b>Open on YouTube ↗</b></a></p>`,
     actions: [{ label: "Got it 👍", cls: "lime" }], onClose: paintHow });
+  if (vert) $(".modal", m.el).classList.add("vmodal");
 }
+// vertical unless the admin chose horizontal (old saves without a choice count as vertical)
+const isVertical = t => t?.orient ? t.orient === "v" : true;
 onValue(R("config/tutorial"), s => { S.tutorial = s.val(); paintHow(); rerender(["admin"]); }, () => { S.tutorial = null; paintHow(); });
 
 /* ================= KEY STORAGE ================= */
@@ -1592,6 +1599,7 @@ function renderAdmin() {
     <div class="card mt2" style="padding:14px">
       <div class="row between wrapf"><b style="font-size:18px">📺 “How to use” video</b>${S.tutorial?.id ? `<span class="pill lime">LIVE for all users</span>` : `<span class="pill">Not set</span>`}</div>
       ${S.tutorial?.id ? `<div class="row mt" style="gap:12px;align-items:flex-start"><img src="https://i.ytimg.com/vi/${esc(S.tutorial.id)}/mqdefault.jpg" alt="" style="width:132px;aspect-ratio:16/9;object-fit:cover;background:#ddd;border-radius:10px;border:2px solid var(--ink);flex:none"><div class="small grow" style="word-break:break-all">${esc(S.tutorial.url)}<div class="tiny muted">updated ${ago(S.tutorial.updatedAt)}</div><button class="btn sm mt" id="tutPlay">▶️ Preview</button></div></div>` : ""}
+      <div class="row wrapf mt" style="gap:6px"><span class="small" style="font-weight:800">Player shape:</span>${[["v", "📱 Vertical (Shorts)"], ["h", "🖥️ Horizontal"]].map(([k, v]) => `<button class="chip ${(S.tutOrient ?? (isVertical(S.tutorial) ? "v" : "h")) === k ? "on" : ""}" data-or="${k}">${v}</button>`).join("")}</div>
       <div class="composer mt"><input id="tutUrl" placeholder="Paste a YouTube link (video or Shorts)" value="${esc(S.tutDraft ?? "")}"><button class="btn sm lime" id="tutSave" style="min-height:48px">Save</button>${S.tutorial?.id ? `<button class="btn sm pink" id="tutDel" style="min-height:48px">Remove</button>` : ""}</div>
       <div class="err small mt" id="tutErr"></div>
     </div>
@@ -1602,11 +1610,19 @@ function renderAdmin() {
   $("#notif")?.addEventListener("click", async () => { try { const p = await Notification.requestPermission(); toast(p === "granted" ? "🔔 You'll get alerts while this tab is open" : "🔕 Blocked in browser settings"); renderAdmin(); } catch {} });
   $$("[data-tab]").forEach(b => b.onclick = () => { S.adminTab = b.dataset.tab; S.adminSel.clear(); renderAdmin(); });
   $("#tutUrl").oninput = e => { S.tutDraft = e.target.value; };
+  $$("[data-or]").forEach(b => b.onclick = async () => {
+    S.tutOrient = b.dataset.or;
+    if (S.tutorial?.id) {   // existing video: switch shape right away
+      try { await update(R("config/tutorial"), { orient: S.tutOrient }); toast(S.tutOrient === "v" ? "📱 Users now see a vertical player" : "🖥️ Users now see a horizontal player", true); }
+      catch (e) { toast(dbErr(e)); }
+    }
+    renderAdmin();
+  });
   $("#tutPlay")?.addEventListener("click", playTutorial);
   $("#tutSave").onclick = async () => {
     const url = $("#tutUrl").value.trim(), id = ytId(url), err = $("#tutErr"); err.textContent = "";
     if (!id) return err.textContent = "That's not a YouTube link I understand. Use youtube.com/watch?v=…, youtu.be/… or /shorts/…";
-    try { await set(R("config/tutorial"), { url, id, short: /\/shorts\//i.test(url), updatedAt: serverTimestamp() }); S.tutDraft = ""; $("#tutUrl") && ($("#tutUrl").value = ""); toast("📺 Live! Users now see “How to use”.", true); }
+    try { await set(R("config/tutorial"), { url, id, short: /\/shorts\//i.test(url), orient: S.tutOrient ?? (/\/shorts\//i.test(url) ? "v" : (S.tutorial ? (isVertical(S.tutorial) ? "v" : "h") : "v")), updatedAt: serverTimestamp() }); S.tutDraft = ""; $("#tutUrl") && ($("#tutUrl").value = ""); toast("📺 Live! Users now see “How to use”.", true); }
     catch (e) { err.textContent = /PERMISSION_DENIED/i.test(String(e?.code || e?.message)) ? "🚫 Database refused — paste the NEW database.rules.json in Firebase (Realtime Database → Rules → Publish)." : dbErr(e); }
   };
   $("#tutDel")?.addEventListener("click", async () => {
