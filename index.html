@@ -304,7 +304,7 @@ hr.dash{border:0;border-top:2px dashed var(--line);margin:16px 0}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendEmailVerification, reload } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import { getDatabase, ref, get, set, update, remove, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
 
 /* ================= CONFIG ================= */
@@ -376,6 +376,8 @@ const view = $("#view");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const firstName = () => (S.profile?.name || S.user?.displayName || S.user?.email || tx("বন্ধু", "friend")).split(/[\s@]/)[0];
 const isPro = () => S.isAdmin || S.profile?.plan === "pro";
+// Email/password accounts must verify their email before making CVs or paying (Google accounts are already verified).
+const needsVerify = () => !!S.user && !S.user.emailVerified && (S.user.providerData || []).some(p => p.providerId === "password");
 const cvCount = () => Number(S.profile?.cvCount || 0);
 const freeLeft = () => Math.max(0, FREE_LIMIT - cvCount());
 const canCreate = () => isPro() || freeLeft() > 0;
@@ -916,7 +918,7 @@ async function ensureProfile(user) {
 
 function celebratePro() {
   confetti();
-  modal({ em: "😎", title: tx("তুমি এখন PRO!", "You're PRO now!"), html: `<p>${tx("পেমেন্ট যাচাই হয়েছে। এখন যত খুশি সিভি বানাও। সব জবে অ্যাপ্লাই করো! 🚀", "Payment verified. Unlimited CVs unlocked. Go apply to <i>everything</i>. 🚀")}</p>`, actions: [{ label: tx("সিভি বানাও ➕", "Make a CV ➕"), cls: "lime", onClick: () => { location.hash = "#/new"; } }] });
+  modal({ em: "😎", title: tx("তুমি এখন PRO!", "You're PRO now!"), html: `<p>${tx("পেমেন্ট যাচাই হয়েছে। এখন যত খুশি সিভি তৈরি করো। সব জবে অ্যাপ্লাই করো! 🚀", "Payment verified. Unlimited CVs unlocked. Go apply to <i>everything</i>. 🚀")}</p>`, actions: [{ label: tx("সিভি তৈরি করো ➕", "Make a CV ➕"), cls: "lime", onClick: () => { location.hash = "#/new"; } }] });
 }
 
 /* ================= ADMIN FEED (notifications) ================= */
@@ -1074,7 +1076,7 @@ function mountAuth(box, tab, opts = {}) {
     if (pw.length < 6) return err.textContent = tx("পাসওয়ার্ড অন্তত ৬ অক্ষর দাও।", "Password needs 6+ characters.");
     const btn = $(".aGo", box), label = btn.textContent; btn.disabled = true; btn.textContent = tx("একটু দাঁড়াও…", "Hold on…");
     try {
-      if (su) { const c = await createUserWithEmailAndPassword(auth, em, pw); await updateProfile(c.user, { displayName: nm }).catch(() => {}); update(R(), { [`users/${c.user.uid}/name`]: nm.slice(0, 80) }).catch(() => {}); }
+      if (su) { const c = await createUserWithEmailAndPassword(auth, em, pw); await updateProfile(c.user, { displayName: nm }).catch(() => {}); sendVerify(c.user).catch(e => console.warn("verify mail", e)); update(R(), { [`users/${c.user.uid}/name`]: nm.slice(0, 80) }).catch(() => {}); }
       else await signInWithEmailAndPassword(auth, em, pw);
     } catch (x) { err.textContent = authMsg(x); btn.disabled = false; btn.textContent = label; }
   };
@@ -1102,7 +1104,7 @@ function renderAuth() {
         ${step(N(2), tx("কোন দেশের জব, বেছে নাও", "Pick the job's country"))}
         ${step(N(3), tx("পুরনো সিভি দাও — AI নতুন করে বানাবে", "Give your old CV — AI rewrites it for the job"))}
       </div>
-      <a class="btn pink" href="#/new" id="startNow" style="font-size:24px;min-height:62px;padding:14px 28px">${tx("ফ্রি সিভি বানাও →", "Make my free CV →")}</a>
+      <a class="btn pink" href="#/new" id="startNow" style="font-size:24px;min-height:62px;padding:14px 28px">${tx("ফ্রি সিভি তৈরি করো →", "Make my free CV →")}</a>
       <p class="small" style="font-weight:600;margin:12px 0 0">${tx(`প্রথম ${N(FREE_LIMIT)}টা ফ্রি · কার্ড লাগবে না · লাগবে শুধু একটা Gmail`, `First ${FREE_LIMIT} free · no card · all you need is a Gmail`)}</p>
       <div class="how-slot mt" data-big="1"></div>
     </div>
@@ -1126,6 +1128,7 @@ function renderHome() {
   let banner = "";
   if (!isPro() && req?.status === "pending") banner += `<div class="card sky banner mt"><span class="em">⏳</span><div class="grow"><b>${tx("PRO আপগ্রেড অপেক্ষায়", "PRO upgrade pending")}</b><div class="small">${tx("Admin bKash চেক করছেন। ঢাকার জ্যামের চেয়ে তাড়াতাড়ি, সাধারণত।", "Admin is checking bKash. Faster than Dhaka traffic, usually.")}</div></div><a class="btn sm" href="#/pro">${tx("দেখো", "View")}</a></div>`;
   if (!isPro() && req?.status === "rejected") banner += `<div class="card pink banner mt"><span class="em">🧐</span><div class="grow"><b>${tx("আপগ্রেড অনুমোদন হয়নি", "Upgrade not approved")}</b><div class="small">${esc(req.note || tx("পেমেন্টটা যাচাই করা যায়নি।", "Payment couldn't be verified."))}</div></div><a class="btn sm" href="#/pro">${tx("ঠিক করো", "Fix it")}</a></div>`;
+  if (needsVerify()) banner += `<div class="card sun banner mt"><span class="em">📧</span><div class="grow"><b>${tx("ইমেইল যাচাই বাকি", "Verify your email")}</b><div class="small">${tx("সিভি বানাতে ইমেইলের লিংকে একবার চাপো।", "Tap the link in your email once to start making CVs.")}</div></div><button class="btn sm lime" id="verifyNow">${tx("যাচাই করো", "Verify")}</button></div>`;
   if (!S.keyInfo && list.length) banner += `<div class="card sun banner mt"><span class="em">🔑</span><div class="grow"><b>${tx("AI বন্ধ আছে", "AI is off")}</b><div class="small">${tx("ফ্রি Google key দিয়ে ১ মিনিটে চালু করো।", "Turn it on with a free Google key in 1 minute.")}</div></div><button class="btn sm lime" id="keyNow">${tx("চালু করো", "Turn on")}</button></div>`;
   const meter = isPro() ? `<span class="pill violet">∞ ${tx("আনলিমিটেড", "unlimited")}</span>` : `<div class="row"><div class="meter">${Array.from({ length: FREE_LIMIT }, (_, i) => `<i class="${i < cvCount() ? "f" : ""}"></i>`).join("")}</div><span class="small" style="font-weight:700">${tx(`${N(freeLeft())}টা ফ্রি বাকি`, `${freeLeft()} free left`)}</span></div>`;
   const first = !list.length && canCreate() ? `
@@ -1157,6 +1160,7 @@ function renderHome() {
   $("#newCv")?.addEventListener("click", startNew);
   $("#firstCv")?.addEventListener("click", startNew);
   $("#keyNow")?.addEventListener("click", () => openKeyWizard());
+  $("#verifyNow")?.addEventListener("click", () => openVerifyModal(() => route()));
   $$(".cvcard").forEach(c => c.onclick = () => location.hash = "#/cv/" + c.dataset.id);
 }
 
@@ -1261,7 +1265,7 @@ function stepSource(el, d) {
       <div class="small" style="font-weight:700">📋 ${tx("জব", "Job")} ✓ · <span class="flag">${c.flag}</span> ${esc(cName(c))} · ${esc(d.lang)}</div>
       <div class="small muted" style="margin-top:4px">${isPro() || S.isAdmin ? tx("😎 PRO — আনলিমিটেড।", "😎 PRO — unlimited.") : S.user ? tx(`🎟️ এতে তোমার ${N(freeLeft())}টা ফ্রি সিভির ১টা খরচ হবে।`, `🎟️ This uses 1 of your ${freeLeft()} free CVs.`) : tx(`🎟️ প্রথম ${N(FREE_LIMIT)}টা সিভি ফ্রি।`, `🎟️ Your first ${FREE_LIMIT} CVs are free.`)}</div>
     </div>
-    <button class="btn pink block mt" id="cook" style="font-size:21px;min-height:62px">${tx("সিভি বানাও! 🔥", "Shade it! 🔥")}</button>
+    <button class="btn pink block mt" id="cook" style="font-size:21px;min-height:62px">${tx("সিভি তৈরি করো! 🔥", "Shade it! 🔥")}</button>
     <p class="small center" style="font-weight:600;margin:10px 0 0">${!S.user ? tx("এরপর: ফ্রি অ্যাকাউন্ট খুলবে → ১ মিনিটে AI চালু → সিভি তৈরি", "Next: free account → turn on AI (1 min) → CV ready") : !S.keyInfo ? tx("প্রথমবার: ১ মিনিটে ফ্রি AI চালু করে দেবো, তারপর সিভি তৈরি", "First time: we'll turn on the free AI (1 min), then make your CV") : tx("১০–৪০ সেকেন্ড লাগবে", "Takes 10–40 seconds")}</p>`;
   const body = $("#srcBody");
   $("#notes").oninput = e => { d.notes = e.target.value; saveDraft(); };
@@ -1379,6 +1383,7 @@ async function generate() {
     return openAuthModal("signup", () => tx("শেষ ধাপ! 🎉", "Last step! 🎉"), () => tx("ফ্রি অ্যাকাউন্ট খুলো — তোমার সিভি সেভ থাকবে, তারপর সাথে সাথে বানানো শুরু।", "Create a free account — your CV gets saved and we start cooking right away."));
   }
   if (!canCreate()) return paywall();
+  if (needsVerify()) return openVerifyModal(() => generate());
   if (!S.keyInfo?.key) return openKeyWizard(() => generate());   // first time: 1-minute key setup, then continue
   track("generate_click", { guest: false });
   showLoader(cookLines());
@@ -1404,6 +1409,7 @@ async function generate() {
 
 async function saveNewCV(rec) {
   const uid = S.user.uid;
+  if (needsVerify()) { hideLoader(); return openVerifyModal(() => { showLoader([tx("সেভ হচ্ছে… 💾", "Saving… 💾")]); saveNewCV(rec); }); }
   try {
     const fresh = (await get(R("users/" + uid))).val() || {}; S.profile = { ...S.profile, ...fresh };
     if (!canCreate()) { hideLoader(); return paywall(); }
@@ -1644,6 +1650,50 @@ async function duplicate() {
   await saveNewCV(Object.fromEntries(Object.entries({ title: (title + " (copy)").slice(0, 120), country: co, lang, tpl, accent, jd, source, data, score, html: html || null, photo: photo || null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).filter(([, v]) => v != null)));
 }
 
+/* ================= EMAIL VERIFICATION ================= */
+async function sendVerify(u = auth.currentUser) {
+  if (!u) return;
+  auth.languageCode = S.lang === "en" ? "en" : "bn";
+  try { await sendEmailVerification(u, { url: location.origin + location.pathname }); }
+  catch (e) { if (/continue-uri|unauthorized-continue/i.test(e?.code || "")) await sendEmailVerification(u); else throw e; }
+}
+function openVerifyModal(onDone) {
+  track("verify_modal_open");
+  let timer = null, done = false, cool = 0;
+  const finish = async () => {
+    if (done) return; done = true; clearInterval(timer);
+    try { await auth.currentUser.getIdToken(true); } catch {}   // fresh token so the database sees "verified"
+    S.user = auth.currentUser; m.close(); toast(tx("✅ ইমেইল যাচাই হয়ে গেছে!", "✅ Email verified!"), true); track("email_verified");
+    refreshChrome(); onDone && onDone();
+  };
+  const check = async () => { try { await reload(auth.currentUser); if (auth.currentUser?.emailVerified) finish(); } catch {} };
+  const m = modal({ html: `<div class="vbox"></div>`, onClose: () => { done = true; clearInterval(timer); window.removeEventListener("focus", check); } });
+  const box = $(".vbox", m.el);
+  const draw = () => {
+    box.innerHTML = `${langMini()}
+      <div style="font-size:42px;line-height:1">📧</div>
+      <h2 style="font-size:clamp(24px,6vw,30px);margin:6px 0 4px">${tx("ইমেইলটা যাচাই করো", "Verify your email")}</h2>
+      <p style="margin:0 0 10px;font-weight:600">${tx(`<b>${esc(S.user?.email || "")}</b>-এ একটা লিংক পাঠিয়েছি। লিংকে চাপো, তারপর এখানে ফিরে এসো — বাকিটা নিজে থেকেই চলবে।`, `We sent a link to <b>${esc(S.user?.email || "")}</b>. Tap it, then come back here — we'll continue automatically.`)}</p>
+      <div class="card sun" style="padding:10px 14px;box-shadow:none;font-size:14px;font-weight:600">${tx("মেইল না পেলে <b>Spam</b> বা <b>Promotions</b> ফোল্ডার দেখো।", "Can't find it? Check <b>Spam</b> or <b>Promotions</b>.")}</div>
+      <div class="kst mt" id="vSt"></div>
+      <button type="button" class="btn lime block mt" id="vDone">${tx("যাচাই করেছি ✓", "I've verified ✓")}</button>
+      <div class="row between wrapf mt"><button type="button" class="linkbtn" id="vResend">${tx("আবার পাঠাও", "Resend email")}</button><button type="button" class="linkbtn" id="vOut">${tx("ভুল ইমেইল? লগ আউট", "Wrong email? Log out")}</button></div>
+      <p class="tiny muted mt" style="margin-bottom:0">${tx("টিপ: পরেরবার “Google দিয়ে এক ট্যাপে” লগইন করলে যাচাই লাগবে না।", "Tip: “Continue with Google” never needs this step.")}</p>`;
+    bindLangMini(box);
+    const st = $("#vSt", box);
+    $("#vDone", box).onclick = async () => { st.className = "kst"; st.textContent = tx("চেক করছি…", "Checking…"); await check(); if (!done) { st.className = "kst bad"; st.textContent = tx("এখনো যাচাই হয়নি। ইমেইলের লিংকে চাপো, তারপর আবার চেষ্টা করো।", "Not verified yet. Tap the link in the email, then try again."); } };
+    $("#vResend", box).onclick = async () => {
+      if (Date.now() < cool) { st.className = "kst bad"; st.textContent = tx("একটু পরে আবার চেষ্টা করো (১ মিনিট)।", "Wait a minute before resending."); return; }
+      try { await sendVerify(); cool = Date.now() + 60000; st.className = "kst ok"; st.textContent = tx("📬 আবার পাঠানো হয়েছে!", "📬 Sent again!"); }
+      catch (e) { st.className = "kst bad"; st.textContent = e?.code === "auth/too-many-requests" ? tx("অনেকবার পাঠানো হয়েছে। কিছুক্ষণ পর চেষ্টা করো।", "Too many emails sent. Try again later.") : authMsg(e); }
+    };
+    $("#vOut", box).onclick = () => { m.close(); flushEditor(); signOut(auth); location.hash = "#/"; };
+  };
+  box.classList.add("remount"); box._remount = draw; draw();
+  timer = setInterval(check, 4000);
+  window.addEventListener("focus", check);
+}
+
 /* ================= KEY SETUP (just-in-time wizard) ================= */
 // Facebook / Instagram's in-app browser blocks Google sign-in → on Android jump straight to Chrome.
 const aiStudioHref = () => IN_APP && IS_ANDROID
@@ -1783,7 +1833,7 @@ function renderPro() {
   if (S.isAdmin) { location.hash = "#/admin"; return; }
   const r = S.request;
   if (isPro()) {
-    view.innerHTML = `<div class="center mt2" style="padding-top:40px"><div class="big floaty">😎</div><h2 class="qtitle mt">${tx("তুমি PRO", "You're PRO")}</h2><p class="muted">${tx("যত খুশি সিভি। এবার জবটা নাও।", "Unlimited CVs. Go get that job.")}</p><button class="btn lime mt" id="mk">${tx("সিভি বানাও ➕", "Make a CV ➕")}</button></div>`;
+    view.innerHTML = `<div class="center mt2" style="padding-top:40px"><div class="big floaty">😎</div><h2 class="qtitle mt">${tx("তুমি PRO", "You're PRO")}</h2><p class="muted">${tx("যত খুশি সিভি। এবার জবটা নাও।", "Unlimited CVs. Go get that job.")}</p><button class="btn lime mt" id="mk">${tx("সিভি তৈরি করো ➕", "Make a CV ➕")}</button></div>`;
     $("#mk").onclick = startNew; return;
   }
   if (r?.status === "pending" && !S.editingReq) {
@@ -1822,6 +1872,7 @@ function renderPro() {
   $("#snd").oninput = e => { e.target.value = e.target.value.replace(/\D/g, ""); };
   $("#cancelEd")?.addEventListener("click", () => { S.editingReq = false; renderPro(); });
   $("#sub").onclick = async () => {
+    if (needsVerify()) return openVerifyModal(() => $("#sub")?.click());
     const trx = $("#trx").value.trim().toUpperCase(), snd = $("#snd").value.trim(), err = $("#pErr"); err.textContent = "";
     if (!/^[A-Z0-9]{8,12}$/.test(trx)) return err.textContent = tx("TrxID ঠিক মনে হচ্ছে না। bKash-এর SMS বা অ্যাপের History-তে পাবে (সাধারণত ১০টা অক্ষর+সংখ্যা)।", "TrxID looks off. It's in your bKash SMS / app history (usually 10 letters+numbers).");
     if (!/^01[3-9]\d{8}$/.test(snd)) return err.textContent = tx("সঠিক ১১ ডিজিটের নম্বর দাও (01XXXXXXXXX)।", "Sender number must be a valid 11-digit BD number (01XXXXXXXXX).");
