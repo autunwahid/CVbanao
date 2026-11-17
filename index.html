@@ -318,7 +318,8 @@ const firebaseConfig = {
   appId: "1:550712670077:web:79ca829cedb3bdbe667e14",
   measurementId: "G-EEVYM4T1PC"
 };
-const ADMIN_EMAIL = "111autun@gmail.com";   // the ONLY admin (also enforced by database rules)
+const ADMIN_HASH = "d32323950b95b5ff38835eceae85d2bd4eeef509118e1e489ac7245702e05cfb";   // SHA-256 of the ONLY admin email (kept out of the public code; the database rules enforce the real check)
+const sha256 = async t => { try { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map(b => b.toString(16).padStart(2, "0")).join(""); } catch { return ""; } };
 const BKASH_NUMBER = "01684549790";
 const PRICE = 200;                           // BDT
 const FREE_LIMIT = 2;
@@ -881,7 +882,8 @@ onAuthStateChanged(auth, async user => {
   }
   Object.assign(S, { user, profile: null, request: null, cvs: {}, keyInfo: null, profileLoaded: false, prevPlan: null, prevReqStatus: null, adminReqs: {}, adminUsers: {}, adminSeen: null, fileInline: keepFile, draft: null });
   S.adminSel = new Set();
-  S.isAdmin = !!user && (user.email || "").toLowerCase() === ADMIN_EMAIL;
+  S.isAdmin = !!user && (await sha256((user.email || "").toLowerCase())) === ADMIN_HASH;
+  S.adminEmail = S.isAdmin ? (user.email || "").toLowerCase() : null;
   if (!user) { document.title = APP; route(); return; }
   view.innerHTML = `<div class="center mt2" style="padding-top:80px"><div class="big floaty">🍳</div><div class="muted mt">${tx("চুলা গরম হচ্ছে…", "Warming up the pan…")}</div></div>`;
   try { await withTimeout(ensureProfile(user), 15000, tx("১৫ সেকেন্ডেও ডেটাবেসে পৌঁছানো গেল না।", "Couldn't reach the Realtime Database in 15 seconds.")); }
@@ -1954,7 +1956,7 @@ function renderAdmin() {
       const list = users.filter(u => !q || (u.email + " " + (u.name || "")).toLowerCase().includes(q)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       el.className = "col mt ulist";
       el.innerHTML = list.map(u => `<div class="card req"><div class="grow"><b style="word-break:break-all">${esc(u.email)}</b><div class="small muted">${esc(u.name || "")} · ${u.cvCount || 0} CVs · joined ${ago(u.createdAt)}</div></div>
-        <div class="acts">${(u.email || "").toLowerCase() === ADMIN_EMAIL ? `<span class="pill ink">ADMIN</span>` : `<button class="btn sm ${u.plan === "pro" ? "violet" : ""}" data-plan="${u.uid}">${u.plan === "pro" ? "😎 PRO" : "FREE"}</button>`}</div></div>`).join("") || `<p class="muted center">Nobody yet. 🦗</p>`;
+        <div class="acts">${(u.email || "").toLowerCase() === S.adminEmail ? `<span class="pill ink">ADMIN</span>` : `<button class="btn sm ${u.plan === "pro" ? "violet" : ""}" data-plan="${u.uid}">${u.plan === "pro" ? "😎 PRO" : "FREE"}</button>`}</div></div>`).join("") || `<p class="muted center">Nobody yet. 🦗</p>`;
       $$("[data-plan]").forEach(b => b.onclick = async () => {
         const u = S.adminUsers[b.dataset.plan], to = u.plan === "pro" ? "free" : "pro";
         if (!(await confirmBox(`Make ${esc(u.email)} ${to.toUpperCase()}?`, to === "free" ? "<p>They'll lose unlimited CVs (existing CVs stay).</p>" : "<p>Manual upgrade, no payment request.</p>", "Do it"))) return;
